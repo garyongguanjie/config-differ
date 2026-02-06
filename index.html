@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Config Differ - Compare Properties and YAML Files</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Config Differ</h1>
+            <p class="subtitle">Compare Spring Boot Properties and YAML files side-by-side</p>
+        </header>
+
+        <div class="input-section">
+            <div class="input-column">
+                <label for="leftTextarea">Original Config</label>
+                <textarea id="leftTextarea" placeholder="Paste your original config here..."># Database Configuration
+server.port=8080
+spring.application.name=myapp
+spring.datasource.url=jdbc:mysql://localhost:3306/mydb
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+# JPA Configuration
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true</textarea>
+            </div>
+
+            <div class="input-column">
+                <label for="rightTextarea">New Config</label>
+                <textarea id="rightTextarea" placeholder="Paste your new config here..."># Database Configuration
+server.port=9090
+spring.application.name=myapp
+spring.datasource.url=jdbc:postgresql://localhost:5432/mydb
+spring.datasource.driver-class-name=org.postgresql.Driver
+spring.datasource.username=admin
+spring.datasource.password=secret
+
+# JPA Configuration
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=false</textarea>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="file-type-selector">
+                <label>File Type:</label>
+                <label class="radio-label">
+                    <input type="radio" name="fileType" value="properties" checked>
+                    Properties
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="fileType" value="yaml">
+                    YAML
+                </label>
+            </div>
+            <button id="compareBtn" class="compare-btn">Compare</button>
+        </div>
+
+        <div id="diffContainer" class="diff-container" style="display: none;">
+            <h2>Diff Results</h2>
+            <div id="diffOutput" class="diff-output"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
