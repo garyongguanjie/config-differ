@@ -476,7 +476,9 @@ class DiffEngine {
                     leftLine: this.formatLine(key, leftValue, fileType),
                     rightLine: this.formatLine(key, rightValue, fileType),
                     leftHighlight: highlights.left,
-                    rightHighlight: highlights.right
+                    rightHighlight: highlights.right,
+                    key: key,
+                    fileType: fileType
                 });
             } else {
                 // Unchanged
@@ -560,8 +562,8 @@ class DiffRenderer {
                 const rightCell = document.createElement('td');
                 
                 if (diff.leftHighlight && diff.rightHighlight) {
-                    leftCell.innerHTML = this.renderHighlights(diff.leftHighlight, 'removed');
-                    rightCell.innerHTML = this.renderHighlights(diff.rightHighlight, 'added');
+                    leftCell.innerHTML = this.renderHighlights(diff.leftHighlight, 'removed', diff.key, diff.fileType);
+                    rightCell.innerHTML = this.renderHighlights(diff.rightHighlight, 'added', diff.key, diff.fileType);
                 } else {
                     leftCell.textContent = diff.leftLine;
                     rightCell.textContent = diff.rightLine;
@@ -587,10 +589,12 @@ class DiffRenderer {
     /**
      * Renders character-level highlights
      */
-    renderHighlights(highlights, changeType) {
+    renderHighlights(highlights, changeType, key, fileType) {
         const wordClass = changeType === 'added' ? 'added-word' : 'removed-word';
+        const separator = fileType === 'properties' ? '=' : ': ';
+        const keyPrefix = escapeHtml(key + separator);
         
-        return highlights.map(segment => {
+        const valueHtml = highlights.map(segment => {
             if (segment.type === changeType) {
                 return `<span class="${wordClass}">${escapeHtml(segment.text)}</span>`;
             } else if (segment.type === 'unchanged') {
@@ -598,6 +602,8 @@ class DiffRenderer {
             }
             return '';
         }).join('');
+        
+        return keyPrefix + valueHtml;
     }
 }
 
