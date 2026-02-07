@@ -4,8 +4,9 @@
  * Escapes HTML special characters to prevent XSS
  */
 function escapeHtml(text) {
+    if (text == null) return '';
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = String(text);
     return div.innerHTML;
 }
 
@@ -15,6 +16,8 @@ function escapeHtml(text) {
  * Computes the Longest Common Subsequence matrix for two strings
  */
 function computeLCS(str1, str2) {
+    str1 = str1 || '';
+    str2 = str2 || '';
     const m = str1.length;
     const n = str2.length;
     const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
@@ -37,6 +40,8 @@ function computeLCS(str1, str2) {
  * Returns objects with highlighted segments for left and right strings
  */
 function highlightDifferences(str1, str2) {
+    str1 = str1 || '';
+    str2 = str2 || '';
     const dp = computeLCS(str1, str2);
     const left = [];
     const right = [];
@@ -70,7 +75,8 @@ class PropertyParser {
      * Returns array of entries with key, value, comment, and type
      */
     parse(text) {
-        const lines = text.split('\n');
+        if (text == null) return [];
+        const lines = String(text).split('\n');
         const entries = [];
         let i = 0;
         
@@ -155,6 +161,7 @@ class PropertyParser {
      * Sorts entries by key, preserving comments with their associated properties
      */
     sort(entries) {
+        if (!Array.isArray(entries)) return [];
         const result = [];
         const properties = [];
         let pendingComments = [];
@@ -195,6 +202,7 @@ class PropertyParser {
      * Converts entries back to properties format
      */
     stringify(entries) {
+        if (!Array.isArray(entries)) return '';
         return entries.map(entry => {
             if (entry.type === 'property') {
                 return `${entry.key}=${entry.value}`;
@@ -213,7 +221,8 @@ class YAMLParser {
      * Parses YAML text into a structured object with comments preserved
      */
     parse(text) {
-        const lines = text.split('\n');
+        if (text == null) return {};
+        const lines = String(text).split('\n');
         this.lines = lines;
         this.currentLine = 0;
         
@@ -395,25 +404,29 @@ class YAMLParser {
         const result = [];
         
         if (typeof obj !== 'object' || obj === null) {
-            return [{ key: prefix, value: String(obj), comments: [] }];
+            return [{ key: prefix || '', value: obj != null ? String(obj) : '', comments: [] }];
         }
         
         for (const key of Object.keys(obj)) {
             const item = obj[key];
             const fullKey = prefix ? `${prefix}.${key}` : key;
             
-            if (item && typeof item === 'object' && '_value' in item) {
+            if (item == null) {
+                result.push({ key: fullKey, value: '', comments: [] });
+            } else if (typeof item === 'object' && '_value' in item) {
                 if (typeof item._value === 'object' && item._value !== null && Object.keys(item._value).length > 0) {
                     result.push(...this.flatten(item._value, fullKey));
                 } else {
                     result.push({
                         key: fullKey,
-                        value: String(item._value),
+                        value: item._value != null ? String(item._value) : '',
                         comments: item._comments || []
                     });
                 }
-            } else {
+            } else if (typeof item === 'object') {
                 result.push(...this.flatten(item, fullKey));
+            } else {
+                result.push({ key: fullKey, value: String(item), comments: [] });
             }
         }
         
@@ -428,6 +441,8 @@ class DiffEngine {
      * Compares two sets of config data and generates diff
      */
     compare(leftData, rightData, fileType) {
+        if (leftData == null && rightData == null) return [];
+        
         let leftEntries, rightEntries;
         
         if (fileType === 'properties') {
@@ -447,10 +462,12 @@ class DiffEngine {
         const diffResults = [];
         
         for (const key of sortedKeys) {
-            const leftValue = leftEntries.get(key);
-            const rightValue = rightEntries.get(key);
+            const hasLeft = leftEntries.has(key);
+            const hasRight = rightEntries.has(key);
+            const leftValue = hasLeft ? leftEntries.get(key) : undefined;
+            const rightValue = hasRight ? rightEntries.get(key) : undefined;
             
-            if (!leftValue && rightValue) {
+            if (!hasLeft && hasRight) {
                 // Added
                 diffResults.push({
                     status: 'added',
@@ -459,7 +476,7 @@ class DiffEngine {
                     leftHighlight: null,
                     rightHighlight: null
                 });
-            } else if (leftValue && !rightValue) {
+            } else if (hasLeft && !hasRight) {
                 // Removed
                 diffResults.push({
                     status: 'removed',
@@ -500,9 +517,10 @@ class DiffEngine {
      */
     propertiesToMap(entries) {
         const map = new Map();
+        if (!Array.isArray(entries)) return map;
         for (const entry of entries) {
-            if (entry.type === 'property') {
-                map.set(entry.key, entry.value);
+            if (entry && entry.type === 'property') {
+                map.set(entry.key || '', entry.value || '');
             }
         }
         return map;
@@ -513,8 +531,11 @@ class DiffEngine {
      */
     yamlToMap(entries) {
         const map = new Map();
+        if (!Array.isArray(entries)) return map;
         for (const entry of entries) {
-            map.set(entry.key, entry.value);
+            if (entry) {
+                map.set(entry.key || '', entry.value || '');
+            }
         }
         return map;
     }
@@ -523,10 +544,12 @@ class DiffEngine {
      * Formats a key-value pair as a display line
      */
     formatLine(key, value, fileType) {
+        const safeKey = key != null ? key : '';
+        const safeValue = value != null ? value : '';
         if (fileType === 'properties') {
-            return `${key}=${value}`;
+            return `${safeKey}=${safeValue}`;
         } else {
-            return `${key}: ${value}`;
+            return `${safeKey}: ${safeValue}`;
         }
     }
 }
@@ -535,66 +558,135 @@ class DiffEngine {
 
 class DiffRenderer {
     /**
-     * Renders the diff results as an HTML table
+     * Renders the diff results as a GitHub-style side-by-side diff table.
+     * Each row has: [left line#] [left indicator] [left content] [right line#] [right indicator] [right content]
+     * Uses a hidden sync row to force both content cells to the same height when text wraps.
      */
     render(diffData, container) {
+        if (!container) return;
+        if (!Array.isArray(diffData) || diffData.length === 0) {
+            container.innerHTML = '<p>No differences found.</p>';
+            return;
+        }
+
         const table = document.createElement('table');
         table.className = 'diff-table';
-        
+
+        // colgroup enforces fixed column widths
+        table.innerHTML = `<colgroup>
+            <col class="col-indicator">
+            <col class="col-content">
+            <col class="col-indicator">
+            <col class="col-content">
+        </colgroup>`;
+
         for (const diff of diffData) {
             const row = document.createElement('tr');
-            
+            row.className = diff.status;
+
             if (diff.status === 'added') {
-                row.className = 'added';
-                row.innerHTML = `
-                    <td class="empty-cell"></td>
-                    <td>${escapeHtml(diff.rightLine)}</td>
-                `;
+                row.innerHTML =
+                    `<td class="indicator empty-cell"></td>` +
+                    `<td class="diff-code empty-cell"></td>` +
+                    `<td class="indicator indicator-added">+</td>` +
+                    `<td class="diff-code diff-code-right">${escapeHtml(diff.rightLine)}</td>`;
             } else if (diff.status === 'removed') {
-                row.className = 'removed';
-                row.innerHTML = `
-                    <td>${escapeHtml(diff.leftLine)}</td>
-                    <td class="empty-cell"></td>
-                `;
+                row.innerHTML =
+                    `<td class="indicator indicator-removed">-</td>` +
+                    `<td class="diff-code diff-code-left">${escapeHtml(diff.leftLine)}</td>` +
+                    `<td class="indicator empty-cell"></td>` +
+                    `<td class="diff-code empty-cell"></td>`;
             } else if (diff.status === 'modified') {
-                row.className = 'modified-both';
-                const leftCell = document.createElement('td');
-                const rightCell = document.createElement('td');
-                
+                const leftIndTd = document.createElement('td');
+                leftIndTd.className = 'indicator indicator-removed';
+                leftIndTd.textContent = '-';
+
+                const leftCodeTd = document.createElement('td');
+                leftCodeTd.className = 'diff-code diff-code-left';
+
+                const rightIndTd = document.createElement('td');
+                rightIndTd.className = 'indicator indicator-added';
+                rightIndTd.textContent = '+';
+
+                const rightCodeTd = document.createElement('td');
+                rightCodeTd.className = 'diff-code diff-code-right';
+
                 if (diff.leftHighlight && diff.rightHighlight) {
-                    leftCell.innerHTML = this.renderHighlights(diff.leftHighlight, 'removed', diff.key, diff.fileType);
-                    rightCell.innerHTML = this.renderHighlights(diff.rightHighlight, 'added', diff.key, diff.fileType);
+                    leftCodeTd.innerHTML = this.renderHighlights(diff.leftHighlight, 'removed', diff.key, diff.fileType);
+                    rightCodeTd.innerHTML = this.renderHighlights(diff.rightHighlight, 'added', diff.key, diff.fileType);
                 } else {
-                    leftCell.textContent = diff.leftLine;
-                    rightCell.textContent = diff.rightLine;
+                    leftCodeTd.textContent = diff.leftLine;
+                    rightCodeTd.textContent = diff.rightLine;
                 }
-                
-                row.appendChild(leftCell);
-                row.appendChild(rightCell);
+
+                row.appendChild(leftIndTd);
+                row.appendChild(leftCodeTd);
+                row.appendChild(rightIndTd);
+                row.appendChild(rightCodeTd);
             } else {
-                row.className = 'unchanged';
-                row.innerHTML = `
-                    <td>${escapeHtml(diff.leftLine)}</td>
-                    <td>${escapeHtml(diff.rightLine)}</td>
-                `;
+                // unchanged
+                row.innerHTML =
+                    `<td class="indicator"></td>` +
+                    `<td class="diff-code diff-code-left">${escapeHtml(diff.leftLine)}</td>` +
+                    `<td class="indicator"></td>` +
+                    `<td class="diff-code diff-code-right">${escapeHtml(diff.rightLine)}</td>`;
             }
-            
+
             table.appendChild(row);
         }
-        
+
         container.innerHTML = '';
         container.appendChild(table);
+
+        // After rendering, synchronize row heights so left & right content cells stay aligned
+        // even when one side wraps more lines than the other.
+        this.syncRowHeights(table);
+        // Re-sync on window resize since wrapping can change
+        this._resizeHandler = () => this.syncRowHeights(table);
+        window.addEventListener('resize', this._resizeHandler);
+    }
+
+    /**
+     * Forces each row's left and right content cells to the same height.
+     * Because the table uses table-layout:fixed, natural row height already
+     * matches the tallest cell. But we reset any previously forced heights
+     * first so the browser can recalculate.
+     */
+    syncRowHeights(table) {
+        const rows = table.querySelectorAll('tr');
+        for (const row of rows) {
+            const cells = row.querySelectorAll('td.diff-code');
+            // Reset forced heights
+            for (const cell of cells) {
+                cell.style.height = '';
+            }
+        }
+        // Now read computed heights and force alignment
+        for (const row of rows) {
+            const cells = row.querySelectorAll('td.diff-code');
+            if (cells.length === 2) {
+                const h0 = cells[0].offsetHeight;
+                const h1 = cells[1].offsetHeight;
+                if (h0 !== h1) {
+                    const max = Math.max(h0, h1) + 'px';
+                    cells[0].style.height = max;
+                    cells[1].style.height = max;
+                }
+            }
+        }
     }
     
     /**
      * Renders character-level highlights
      */
     renderHighlights(highlights, changeType, key, fileType) {
+        if (!Array.isArray(highlights)) return escapeHtml(key || '');
         const wordClass = changeType === 'added' ? 'added-word' : 'removed-word';
         const separator = fileType === 'properties' ? '=' : ': ';
-        const keyPrefix = escapeHtml(key + separator);
+        const keyPrefix = escapeHtml((key || '') + separator);
         
         const valueHtml = highlights.map(segment => {
+            if (!segment) return '';
             if (segment.type === changeType) {
                 return `<span class="${wordClass}">${escapeHtml(segment.text)}</span>`;
             } else if (segment.type === 'unchanged') {
@@ -616,12 +708,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const diffContainer = document.getElementById('diffContainer');
     const diffOutput = document.getElementById('diffOutput');
     
+    if (!compareBtn || !leftTextarea || !rightTextarea || !diffContainer || !diffOutput) {
+        console.error('Config Differ: Required DOM elements not found.');
+        return;
+    }
+    
     compareBtn.addEventListener('click', () => {
         try {
             // Get input values
             const leftText = leftTextarea.value;
             const rightText = rightTextarea.value;
-            const fileType = document.querySelector('input[name="fileType"]:checked').value;
+            const fileTypeEl = document.querySelector('input[name="fileType"]:checked');
+            const fileType = fileTypeEl ? fileTypeEl.value : 'properties';
             
             // Validate inputs
             if (!leftText.trim() || !rightText.trim()) {

@@ -145,67 +145,108 @@ textarea:focus {
 .diff-output {
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    overflow: auto;
+    overflow-x: auto;
 }
 
+/* ── GitHub-style side-by-side diff table ── */
 .diff-table {
     width: 100%;
+    table-layout: fixed;          /* key: fixed layout honours col widths */
     border-collapse: collapse;
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
     font-size: 13px;
 }
 
+/* Column sizing via <colgroup> */
+.diff-table .col-indicator { width: 20px; }
+.diff-table .col-content   { /* remaining space, auto */ }
+
+/* ── All cells ── */
 .diff-table td {
-    padding: 2px 10px;
+    padding: 1px 10px;
     vertical-align: top;
-    word-wrap: break-word;
-    white-space: pre-wrap;
-    border: 1px solid var(--border-color);
-    width: 50%;
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
 }
 
-.diff-table tr.added td {
+/* Centre divider between left & right halves */
+.diff-table td:nth-child(2) {
+    border-right: 2px solid var(--border-color);
+}
+
+/* ── Indicator (+/-) cells ── */
+.diff-table td.indicator {
+    width: 20px;
+    min-width: 20px;
+    padding: 1px 4px;
+    text-align: center;
+    font-weight: 700;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* ── Code content cells — word-wrap enabled ── */
+.diff-table td.diff-code {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-all;
+}
+
+/* ── Row colour coding ── */
+
+/* Added row */
+.diff-table tr.added td.indicator-added {
+    background-color: #ccffd8;
+}
+.diff-table tr.added td.diff-code-right {
     background-color: var(--diff-added-bg);
 }
 
-.diff-table tr.removed td {
+/* Removed row */
+.diff-table tr.removed td.indicator-removed {
+    background-color: #ffd7d5;
+}
+.diff-table tr.removed td.diff-code-left {
     background-color: var(--diff-removed-bg);
 }
 
+/* Modified row — left side removed, right side added */
+.diff-table tr.modified td.indicator-removed {
+    background-color: #ffd7d5;
+}
+.diff-table tr.modified td.diff-code-left {
+    background-color: var(--diff-removed-bg);
+}
+.diff-table tr.modified td.indicator-added {
+    background-color: #ccffd8;
+}
+.diff-table tr.modified td.diff-code-right {
+    background-color: var(--diff-added-bg);
+}
+
+/* Unchanged rows */
 .diff-table tr.unchanged td {
     background-color: var(--diff-unchanged);
 }
 
-.diff-table tr.modified-left td:first-child {
-    background-color: var(--diff-removed-bg);
-}
-
-.diff-table tr.modified-right td:last-child {
-    background-color: var(--diff-added-bg);
-}
-
-.diff-table tr.modified-both td:first-child {
-    background-color: var(--diff-removed-bg);
-}
-
-.diff-table tr.modified-both td:last-child {
-    background-color: var(--diff-added-bg);
-}
-
+/* ── Inline word-level highlights ── */
 .diff-table .added-word {
     background-color: var(--diff-added-word);
     padding: 1px 2px;
+    border-radius: 2px;
 }
 
 .diff-table .removed-word {
     background-color: var(--diff-removed-word);
     padding: 1px 2px;
+    border-radius: 2px;
 }
 
-.diff-table .empty-cell {
-    background-color: #fafbfc;
-    color: #d0d7de;
-    text-align: center;
+/* ── Empty / placeholder cells ── */
+.diff-table td.empty-cell {
+    background-color: #f6f8fa;
 }
 
 /* Responsive design */
@@ -234,8 +275,16 @@ textarea:focus {
     .diff-table {
         font-size: 11px;
     }
-    
+
     .diff-table td {
-        padding: 2px 5px;
+        padding: 1px 4px;
     }
+
+    .diff-table td.indicator {
+        width: 16px;
+        min-width: 16px;
+        padding: 1px 2px;
+    }
+
+    .diff-table .col-indicator { width: 16px; }
 }
