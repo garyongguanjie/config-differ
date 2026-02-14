@@ -234,14 +234,10 @@ textarea:focus {
 /* ── Inline word-level highlights ── */
 .diff-table .added-word {
     background-color: var(--diff-added-word);
-    padding: 1px 2px;
-    border-radius: 2px;
 }
 
 .diff-table .removed-word {
     background-color: var(--diff-removed-word);
-    padding: 1px 2px;
-    border-radius: 2px;
 }
 
 /* ── Empty / placeholder cells ── */
